@@ -4,6 +4,7 @@
 # ============================================================
 
 import os
+import hmac
 import joblib
 import pandas as pd
 import streamlit as st
@@ -406,6 +407,7 @@ elif page == "Feedbacks":
 # ------------------------------------------------------------
 elif page == "Espace créateur":
     page_header("Espace créateur / expert", "Les experts peuvent gérer leurs contenus, programmer des lives et suivre la performance de leurs formations.")
+    st.caption("Prototype de démonstration : les chiffres de cette interface sont illustratifs et ne proviennent pas d’utilisateurs réels.")
     c1,c2,c3,c4 = st.columns(4)
     with c1: metric_card("Contenus publiés", "18", "+3 ce mois")
     with c2: metric_card("Apprenants inscrits", "426", "+11%")
@@ -422,7 +424,38 @@ elif page == "Espace créateur":
 # Admin
 # ------------------------------------------------------------
 elif page == "Back-office admin":
-    page_header("Back-office administrateur", "L’équipe RESEI pilote la plateforme avec les KPIs, les revenus en euros, les recommandations et les feedbacks.")
+    page_header("Back-office administrateur", "Accès réservé à la démonstration d’administration du prototype RESEI.")
+
+    # Contrôle d'accès au prototype ; le secret est renseigné dans
+    # Streamlit Community Cloud > App settings > Secrets, jamais dans GitHub.
+    # Cette mesure ne constitue pas une authentification de production
+    # (pas de comptes nominatifs, MFA, limitation serveur des tentatives).
+    try:
+        admin_password = st.secrets.get("admin_password", "")
+    except (FileNotFoundError, KeyError):
+        admin_password = ""
+
+    if not admin_password:
+        st.warning("Accès administrateur désactivé : définissez admin_password dans les Secrets de Streamlit Cloud.")
+        st.stop()
+
+    if not st.session_state.get("resei_admin_authenticated", False):
+        st.info("Cette zone du prototype est réservée à l'administrateur. Entrez le mot de passe de démonstration.")
+        with st.form("resei_admin_authentication", clear_on_submit=True):
+            entered_password = st.text_input("Mot de passe administrateur", type="password")
+            submitted = st.form_submit_button("Se connecter")
+        if submitted:
+            if hmac.compare_digest(entered_password.encode("utf-8"), str(admin_password).encode("utf-8")):
+                st.session_state.resei_admin_authenticated = True
+                st.rerun()
+            else:
+                st.error("Mot de passe incorrect.")
+        st.stop()
+
+    if st.button("Se déconnecter du back-office"):
+        st.session_state.resei_admin_authenticated = False
+        st.rerun()
+    st.caption("Démonstration : les indicateurs de gestion présentés ci-dessous sont fictifs/illustratifs, pas des statistiques réelles d'OZAMBA ou de RESEI.")
     total,pos,neutre,neg = feedback_metrics()
     c1,c2,c3,c4 = st.columns(4)
     with c1: metric_card("Utilisateurs actifs", "1 248", "+12%")
